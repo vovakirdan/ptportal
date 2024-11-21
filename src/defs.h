@@ -2,7 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <ctype.h>
-#include <SDL.h>
+#include <math.h>
+// #include <SDL.h>
+#include <SDL2/SDL.h>
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1);}
 
@@ -55,3 +57,5 @@ typedef struct v2i_s {i32 x, y;} v2i;
 #define max(_a, _b) ({ __typeof__(_a) __a = (_a), __b = (_b); __a > __b ? __a : __b; })
 #define clamp(_x, _mi, _ma) (min(max(_x, _mi), _ma))
 #define ifnan(_x, _alt) ({ __typeof__(_x) __x = (_x); isnan(__x) ? (_alt) : __x; })
+
+#define MAP_SIZE 8
