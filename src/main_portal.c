@@ -228,7 +228,15 @@ int main(int argc, char *argv[]) {
     state.dir = normalize(((v2) { -1.0f, 0.1f }));
     state.plane = (v2) { 0.0f, 0.66f };
 
+    const int FPS = 60;
+    const int frameDelay = 1000 / FPS;
+
+    u32 frameStart;
+    int frameTime;
+
     while (!state.quit) {
+        frameStart = SDL_GetTicks();
+
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
             switch (ev.type) {
@@ -274,6 +282,11 @@ int main(int argc, char *argv[]) {
             NULL,
             SDL_FLIP_VERTICAL);
         SDL_RenderPresent(state.renderer);
+
+        frameTime = SDL_GetTicks() - frameStart;
+        if (frameDelay > frameTime) {
+            SDL_Delay(frameDelay - frameTime);
+        }
     }
 
     SDL_DestroyTexture(state.texture);
