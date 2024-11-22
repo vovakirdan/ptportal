@@ -12,8 +12,8 @@ INCFLAGS = -iquotesrc
 CCFLAGS  = -std=c2x
 CCFLAGS += -O2
 CCFLAGS += -g
-# CCFLAGS += -fbracket-depth=1024
-# CCFLAGS += -fmacro-backtrace-limit=0
+CCFLAGS += -fbracket-depth=1024
+CCFLAGS += -fmacro-backtrace-limit=0
 CCFLAGS += -Wall
 CCFLAGS += -Wextra
 CCFLAGS += -Wpedantic
@@ -46,16 +46,28 @@ OUT = $(BIN)/game
 
 -include $(DEP)
 
-UNAME := $(shell uname -s)
-ifeq ($(UNAME),Darwin)
+# UNAME := $(shell uname -s)
+BREW := $(shell which brew)
+ifeq ($(BREW),)
+	LDFLAGS += -lSDL2
+else
 	CC = $(shell brew --prefix llvm)/bin/clang
 	LD = $(shell brew --prefix llvm)/bin/clang
 
 	INCFLAGS += -I$(PATH_SDL)/include
 	LDFLAGS += $(shell $(BIN)/sdl/sdl2-config --prefix=$(BIN) --static-libs)
-else ifeq ($(UNAME),Linux)
 	LDFLAGS += -lSDL2
 endif
+# ifeq ($(UNAME),Linux)
+# 	CC = $(shell brew --prefix llvm)/bin/clang
+# 	LD = $(shell brew --prefix llvm)/bin/clang
+
+# 	INCFLAGS += -I$(PATH_SDL)/include
+# 	LDFLAGS += $(shell $(BIN)/sdl/sdl2-config --prefix=$(BIN) --static-libs)
+# 	LDFLAGS += -lSDL2
+# else ifeq ($(UNAME),Darwin)
+# 	LDFLAGS += -lSDL2
+# endif
 
 $(BIN):
 	mkdir -p $@
@@ -79,10 +91,10 @@ $(OBJ): $(BIN)/%.o: %.c
 doom: dirs $(BIN)/src/main_doom.o
 	$(LD) -o bin/main_doom $(BIN)/src/main_doom.o $(LDFLAGS)
 
-wolf: dirs $(BIN)/src/main_portal.o
+portal: dirs $(BIN)/src/main_portal.o
 	$(LD) -o bin/portal $(BIN)/src/main_portal.o $(LDFLAGS)
 
-all: dirs doom wolf
+all: dirs doom portal
 
 clean:
 	rm -rf bin

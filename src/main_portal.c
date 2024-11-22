@@ -61,17 +61,17 @@ typedef struct v2i_s {i32 x, y;} v2i;
         __typeof__(a) _a = (a);                          \
         (__typeof__(a))(_a < 0 ? -1 : (_a > 0 ? 1 : 0)); \
     })
-#define MAP_SIZE 8
-
+#define MAP_SIZE 16
 static u8 MAPDATA[MAP_SIZE * MAP_SIZE] = {
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 0, 3, 0, 1,
-    1, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 2, 0, 4, 4, 0, 1,
-    1, 0, 0, 0, 4, 0, 0, 1,
-    1, 0, 3, 0, 0, 0, 0, 1,
-    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 1,
+    1, 0, 2, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 };
 
 struct {
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
 
     state.window =
         SDL_CreateWindow(
-            "DEMO",
+            "PTPORTAL",
             SDL_WINDOWPOS_CENTERED_DISPLAY(0),
             SDL_WINDOWPOS_CENTERED_DISPLAY(0),
             1280,
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
         state.texture,
         "failed to create SDL texture: %s\n", SDL_GetError());
 
-    state.pos = (v2) { 2, 2 };
+    state.pos = (v2) { 8.f, 8.f };
     state.dir = normalize(((v2) { -1.0f, 0.1f }));
     state.plane = (v2) { 0.0f, 0.66f };
 
