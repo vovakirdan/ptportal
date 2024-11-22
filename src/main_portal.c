@@ -152,11 +152,11 @@ static void render() {
                 hit.side = 1;
             }
 
-            ASSERT(
-                ipos.x >= 0 && ipos.x < MAP_SIZE &&
-                ipos.y >= 0 && ipos.y < MAP_SIZE,
-                "DDA out of bounds\n"
-            );
+            // Check bounds
+            if (ipos.x < 0 || ipos.x >= MAP_SIZE || ipos.y < 0 || ipos.y >= MAP_SIZE) {
+                hit.val = 1;  // Treat as hitting an out-of-bounds wall
+                break;
+            }
 
             hit.val = MAPDATA[ipos.y * MAP_SIZE + ipos.x];
         }
@@ -285,13 +285,41 @@ int main(int argc, char *argv[]) {
         }
 
         if (keystate[SDL_SCANCODE_UP]) {
-            state.pos.x += state.dir.x * movespeed;
-            state.pos.y += state.dir.y * movespeed;
+            // Predict next position
+            v2 new_pos = {
+                state.pos.x + state.dir.x * movespeed,
+                state.pos.y + state.dir.y * movespeed
+            };
+
+            // Check if the new position collides with a wall
+            int ipos_x = (int)new_pos.x;
+            int ipos_y = (int)new_pos.y;
+
+            if (ipos_x >= 0 && ipos_x < MAP_SIZE && ipos_y >= 0 && ipos_y < MAP_SIZE) {
+                if (MAPDATA[ipos_y * MAP_SIZE + ipos_x] == 0) {
+                    // Move the player if there's no wall
+                    state.pos = new_pos;
+                }
+            }
         }
 
         if (keystate[SDL_SCANCODE_DOWN]) {
-            state.pos.x -= state.dir.x * movespeed;
-            state.pos.y -= state.dir.y * movespeed;
+            // Predict next position
+            v2 new_pos = {
+                state.pos.x - state.dir.x * movespeed,
+                state.pos.y - state.dir.y * movespeed
+            };
+
+            // Check if the new position collides with a wall
+            int ipos_x = (int)new_pos.x;
+            int ipos_y = (int)new_pos.y;
+
+            if (ipos_x >= 0 && ipos_x < MAP_SIZE && ipos_y >= 0 && ipos_y < MAP_SIZE) {
+                if (MAPDATA[ipos_y * MAP_SIZE + ipos_x] == 0) {
+                    // Move the player if there's no wall
+                    state.pos = new_pos;
+                }
+            }
         }
 
         memset(state.pixels, 0, sizeof(state.pixels));
