@@ -74,6 +74,12 @@ static u8 MAPDATA[MAP_SIZE * MAP_SIZE] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 };
 
+#define TEXTURE_WIDTH 64
+#define TEXTURE_HEIGHT 64
+#define NUM_TEXTURES 4
+
+static u32 TEXTURES[NUM_TEXTURES][TEXTURE_WIDTH * TEXTURE_HEIGHT];
+
 struct {
     SDL_Window *window;
     SDL_Texture *texture;
@@ -84,44 +90,57 @@ struct {
     v2 pos, dir, plane;
 } state;
 
-static void verline(int x, int y0, int y1, u32 color) {
-    for (int y = y0; y <= y1; y++) {
-        state.pixels[(y * SCREEN_WIDTH) + x] = color;
+// removed because of we render pixel-by-pixel for textured walls
+// static void verline(int x, int y0, int y1, u32 color) {
+//     for (int y = y0; y <= y1; y++) {
+//         state.pixels[(y * SCREEN_WIDTH) + x] = color;
+//     }
+// }
+
+static void init_textures() {
+    for (int i = 0; i < TEXTURE_WIDTH * TEXTURE_HEIGHT; i++) {
+        // Texture 1: Red
+        TEXTURES[0][i] = 0xFF0000FF;
+        // Texture 2: Green
+        TEXTURES[1][i] = 0xFF00FF00;
+        // Texture 3: Blue
+        TEXTURES[2][i] = 0xFFFF0000;
+        // Texture 4: Yellow
+        TEXTURES[3][i] = 0xFFFFFF00;
     }
 }
 
 static void render() {
     for (int x = 0; x < SCREEN_WIDTH; x++) {
-        // x coordinate in space from [-1, 1]
-        const f32 xcam = (2 * (x / (f32) (SCREEN_WIDTH))) - 1;
+        // x coordinate in camera space [-1, 1]
+        const f32 xcam = (2 * (x / (f32)SCREEN_WIDTH)) - 1;
 
-        // ray direction through this column
+        // Ray direction for this column
         const v2 dir = {
             state.dir.x + state.plane.x * xcam,
             state.dir.y + state.plane.y * xcam
         };
 
         v2 pos = state.pos;
-        v2i ipos = { (int) pos.x, (int) pos.y };
+        v2i ipos = { (int)pos.x, (int)pos.y };
 
-        // distance ray must travel from one x/y side to the next
+        // Delta distance
         const v2 deltadist = {
             fabsf(dir.x) < 1e-20 ? 1e30 : fabsf(1.0f / dir.x),
             fabsf(dir.y) < 1e-20 ? 1e30 : fabsf(1.0f / dir.y),
         };
 
-        // distance from start position to first x/y side
+        // Initial side distance
         v2 sidedist = {
             deltadist.x * (dir.x < 0 ? (pos.x - ipos.x) : (ipos.x + 1 - pos.x)),
             deltadist.y * (dir.y < 0 ? (pos.y - ipos.y) : (ipos.y + 1 - pos.y)),
         };
 
-        // integer step direction for x/y, calculated from overall diff
-        const v2i step = { (int) sign(dir.x), (int) sign(dir.y) };
+        // Step direction
+        const v2i step = { (int)sign(dir.x), (int)sign(dir.y) };
 
-        // DDA hit
-        struct { int val, side; v2 pos; } hit = { 0, 0, { 0.0f, 0.0f } };
-
+        // DDA loop to find the wall hit
+        struct { int val, side; } hit = { 0, 0 };
         while (!hit.val) {
             if (sidedist.x < sidedist.y) {
                 sidedist.x += deltadist.x;
@@ -134,50 +153,54 @@ static void render() {
             }
 
             ASSERT(
-                ipos.x >= 0
-                && ipos.x < MAP_SIZE
-                && ipos.y >= 0
-                && ipos.y < MAP_SIZE,
-                "DDA out of bounds");
+                ipos.x >= 0 && ipos.x < MAP_SIZE &&
+                ipos.y >= 0 && ipos.y < MAP_SIZE,
+                "DDA out of bounds\n"
+            );
 
             hit.val = MAPDATA[ipos.y * MAP_SIZE + ipos.x];
         }
 
-        u32 color;
-        switch (hit.val) {
-        case 1: color = 0xFF0000FF; break;
-        case 2: color = 0xFF00FF00; break;
-        case 3: color = 0xFFFF0000; break;
-        case 4: color = 0xFFFF00FF; break;
+        // Wall distance calculation
+        const f32 dperp = hit.side == 0 ? (sidedist.x - deltadist.x) : (sidedist.y - deltadist.y);
+
+        // Line height and positions
+        const int h = (int)(SCREEN_HEIGHT / dperp);
+        const int y0 = max((SCREEN_HEIGHT / 2) - (h / 2), 0);
+        const int y1 = min((SCREEN_HEIGHT / 2) + (h / 2), SCREEN_HEIGHT - 1);
+
+        // Texture index based on map value
+        int texture_index = hit.val - 1;  // Map value 1 corresponds to texture index 0
+
+        // Determine texture X-coordinate
+        f32 wall_x = (hit.side == 0) ? (pos.y + dperp * dir.y) : (pos.x + dperp * dir.x);
+        wall_x -= floorf(wall_x);  // Normalize to [0, 1]
+        int tex_x = (int)(wall_x * TEXTURE_WIDTH);
+        if (hit.side == 0 && dir.x > 0) tex_x = TEXTURE_WIDTH - tex_x - 1;
+        if (hit.side == 1 && dir.y < 0) tex_x = TEXTURE_WIDTH - tex_x - 1;
+
+        // Render the wall column pixel-by-pixel
+        for (int y = y0; y <= y1; y++) {
+            int tex_y = ((y - y0) * TEXTURE_HEIGHT) / (y1 - y0);  // Map screen y to texture y
+            u32 color = TEXTURES[texture_index][tex_y * TEXTURE_WIDTH + tex_x];
+
+            // Darken color if the wall is a Y-side hit
+            if (hit.side == 1) {
+                const u32 br = ((color & 0xFF00FF) * 0xC0) >> 8;
+                const u32 g = ((color & 0x00FF00) * 0xC0) >> 8;
+                color = 0xFF000000 | (br & 0xFF00FF) | (g & 0x00FF00);
+            }
+
+            state.pixels[(y * SCREEN_WIDTH) + x] = color;
         }
 
-        // darken colors on y-sides
-        if (hit.side == 1) {
-            const u32
-                br = ((color & 0xFF00FF) * 0xC0) >> 8,
-                g  = ((color & 0x00FF00) * 0xC0) >> 8;
-
-            color = 0xFF000000 | (br & 0xFF00FF) | (g & 0x00FF00);
+        // Fill above and below the wall slice
+        for (int y = 0; y < y0; y++) {
+            state.pixels[(y * SCREEN_WIDTH) + x] = 0xFF202020;  // Ceiling color
         }
-
-        hit.pos = (v2) { pos.x + sidedist.x, pos.y + sidedist.y };
-
-        // distance to hit
-        const f32 dperp =
-            hit.side == 0 ?
-                (sidedist.x - deltadist.x)
-                : (sidedist.y - deltadist.y);
-
-        // perform perspective division, calculate line height relative to
-        // screen center
-        const int
-            h = (int) (SCREEN_HEIGHT / dperp),
-            y0 = max((SCREEN_HEIGHT / 2) - (h / 2), 0),
-            y1 = min((SCREEN_HEIGHT / 2) + (h / 2), SCREEN_HEIGHT - 1);
-
-        verline(x, 0, y0, 0xFF202020);
-        verline(x, y0, y1, color);
-        verline(x, y1, SCREEN_HEIGHT - 1, 0xFF505050);
+        for (int y = y1 + 1; y < SCREEN_HEIGHT; y++) {
+            state.pixels[(y * SCREEN_WIDTH) + x] = 0xFF505050;  // Floor color
+        }
     }
 }
 
@@ -224,7 +247,7 @@ int main(int argc, char *argv[]) {
         state.texture,
         "failed to create SDL texture: %s\n", SDL_GetError());
 
-    state.pos = (v2) { 8.f, 8.f };
+    state.pos = (v2) { 2, 2 };
     state.dir = normalize(((v2) { -1.0f, 0.1f }));
     state.plane = (v2) { 0.0f, 0.66f };
 
@@ -233,6 +256,8 @@ int main(int argc, char *argv[]) {
 
     u32 frameStart;
     int frameTime;
+
+    init_textures();
 
     while (!state.quit) {
         frameStart = SDL_GetTicks();
